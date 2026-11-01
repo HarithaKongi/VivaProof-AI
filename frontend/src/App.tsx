@@ -109,7 +109,7 @@ export default function App() {
               <div className="message-body"><div className="message-label">{message.role === "assistant" ? "VIVAPROOF AI" : "YOU"}</div>
                 <p className="message-text">{message.content}</p>
                 {message.citations && message.citations.length > 0 && <div className="sources"><div className="sources-heading"><ShieldCheck size={14}/> RETRIEVED EVIDENCE <span>{message.citations.length} SOURCES</span></div>
-                  {message.citations.map((citation, i) => <details className="source-card" key={`${citation.document_id}-${citation.chunk_index}`}>
+                  {message.citations.map(citation => <details className="source-card" key={`${citation.document_id}-${citation.chunk_index}`}>
                     <summary><FileText size={15}/><span>{citation.filename}</span><small>{citation.page ? `Page ${citation.page}` : `Chunk ${citation.chunk_index + 1}`}</small><b>{(citation.score * 100).toFixed(0)}%</b></summary>
                     <p>{citation.excerpt}</p>
                   </details>)}
