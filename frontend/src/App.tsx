@@ -13,16 +13,21 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [health, setHealth] = useState<"checking" | "online" | "offline">("checking");
+  const [storageConfigured, setStorageConfigured] = useState(false);
   const [notice, setNotice] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     try {
-      const [h, d] = await Promise.all([fetch(`${API}/api/health`), fetch(`${API}/api/documents`)]);
-      if (!h.ok || !d.ok) throw new Error("API unavailable");
-      setHealth("online"); setDocuments(await d.json());
-    } catch { setHealth("offline"); }
+      const h = await fetch(`${API}/api/health`);
+      if (!h.ok) throw new Error("API unavailable");
+      const status = await h.json();
+      setHealth("online");
+      setStorageConfigured(Boolean(status.vector_store_configured));
+      const d = await fetch(`${API}/api/documents`);
+      setDocuments(d.ok ? await d.json() : []);
+    } catch { setHealth("offline"); setDocuments([]); }
   }
   useEffect(() => { void load(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -94,7 +99,8 @@ export default function App() {
             <div className="welcome-icon"><Bot size={25}/></div>
             <div><div className="eyebrow">YOUR PROJECT, UNDERSTOOD</div><h2>Ask questions. See the evidence.</h2><p>VivaProof retrieves relevant passages from your uploaded project files and explains what they support.</p></div>
           </div>
-          {health === "offline" && <div className="alert"><Activity size={16}/> Start the FastAPI backend at <code>localhost:8000</code> to connect this workspace.</div>}
+          {health === "offline" && <div className="alert"><Activity size={16}/> The API is waking up or temporarily unavailable. Please refresh in a moment.</div>}
+          {health === "online" && !storageConfigured && <div className="alert"><Activity size={16}/> Backend is online. Connect a free Qdrant Cloud cluster to enable persistent document uploads and semantic search.</div>}
           {notice && <div className="notice"><CheckCircle2 size={15}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={14}/></button></div>}
           <div className="conversation">
             {messages.length === 0 ? <div className="empty-state">
