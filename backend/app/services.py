@@ -1,4 +1,4 @@
-"""RAG pipeline: extraction -> chunking -> embeddings -> Qdrant -> grounded generation."""
+"""RAG pipeline using Qdrant Cloud's hosted embeddings to keep the API lightweight."""
 from __future__ import annotations
 
 import hashlib
@@ -9,35 +9,34 @@ from typing import Any
 from docx import Document as DocxDocument
 from pypdf import PdfReader
 from qdrant_client import QdrantClient, models
-from sentence_transformers import SentenceTransformer
 
 from app.config import get_settings
 
 settings = get_settings()
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
-_encoder: SentenceTransformer | None = None
 _client: QdrantClient | None = None
 _gemini_client: Any = None
 
 
-def encoder() -> SentenceTransformer:
-    global _encoder
-    if _encoder is None:
-        _encoder = SentenceTransformer(settings.embedding_model)
-    return _encoder
-
-
 def vector_db() -> QdrantClient:
     global _client
+    if not settings.qdrant_url or not settings.qdrant_api_key:
+        raise RuntimeError(
+            "Vector database is not configured. Add QDRANT_URL and QDRANT_API_KEY in the backend environment."
+        )
     if _client is None:
-        path = Path(settings.qdrant_path)
-        path.mkdir(parents=True, exist_ok=True)
-        _client = QdrantClient(path=str(path))
+        _client = QdrantClient(
+            url=settings.qdrant_url,
+            api_key=settings.qdrant_api_key,
+            cloud_inference=True,
+            timeout=45,
+        )
         if not _client.collection_exists(settings.collection_name):
-            dimension = encoder().get_sentence_embedding_dimension()
             _client.create_collection(
                 collection_name=settings.collection_name,
-                vectors_config=models.VectorParams(size=dimension, distance=models.Distance.COSINE),
+                vectors_config=models.VectorParams(
+                    size=settings.embedding_size, distance=models.Distance.COSINE
+                ),
             )
     return _client
 
@@ -85,16 +84,20 @@ def index_document(filename: str, content: bytes) -> dict[str, Any]:
             records.append({"text": chunk, "page": page["page"], "chunk_index": len(records)})
     if not records:
         raise ValueError("No readable text found. Scanned PDFs need OCR before indexing.")
-    vectors = encoder().encode([r["text"] for r in records], normalize_embeddings=True).tolist()
+
+    client = vector_db()
     points = [
         models.PointStruct(
-            id=str(uuid.uuid4()), vector=vector,
+            id=str(uuid.uuid4()),
+            vector=models.Document(text=record["text"], model=settings.embedding_model),
             payload={**record, "document_id": document_id, "filename": filename,
                      "content_hash": hashlib.sha256(content).hexdigest()},
         )
-        for record, vector in zip(records, vectors)
+        for record in records
     ]
-    vector_db().upsert(collection_name=settings.collection_name, points=points)
+    client.upload_points(
+        collection_name=settings.collection_name, points=points, batch_size=8, wait=True
+    )
     return {"document_id": document_id, "filename": filename, "chunks": len(records),
             "characters": sum(len(r["text"]) for r in records)}
 
@@ -104,8 +107,10 @@ def list_documents() -> list[dict[str, Any]]:
     documents: dict[str, dict[str, Any]] = {}
     offset = None
     while True:
-        points, offset = client.scroll(collection_name=settings.collection_name, limit=256,
-                                       offset=offset, with_payload=True, with_vectors=False)
+        points, offset = client.scroll(
+            collection_name=settings.collection_name, limit=256, offset=offset,
+            with_payload=True, with_vectors=False,
+        )
         for point in points:
             payload = point.payload or {}
             doc_id = payload.get("document_id")
@@ -132,9 +137,12 @@ def delete_document(document_id: str) -> None:
 
 
 def retrieve(question: str, top_k: int | None = None) -> list[dict[str, Any]]:
-    vector = encoder().encode(question, normalize_embeddings=True).tolist()
-    response = vector_db().query_points(collection_name=settings.collection_name,
-        query=vector, limit=top_k or settings.top_k, with_payload=True)
+    response = vector_db().query_points(
+        collection_name=settings.collection_name,
+        query=models.Document(text=question, model=settings.embedding_model),
+        limit=top_k or settings.top_k,
+        with_payload=True,
+    )
     return [{
         "document_id": (p.payload or {}).get("document_id", ""),
         "filename": (p.payload or {}).get("filename", "Unknown"),
