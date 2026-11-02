@@ -31,3 +31,4 @@ class ChatResponse(BaseModel):
     answer: str
     citations: list[Citation]
     mode: str
+    timings_ms: dict[str, int] = Field(default_factory=dict)
