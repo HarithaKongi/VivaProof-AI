@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Bot, CheckCircle2, FileText, FolderOpen, Loader2, MessageSquare, Paperclip, Plus, Send, ShieldCheck, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API = (import.meta.env.VITE_API_URL || "https://vivaproof-ai-api.onrender.com").replace(/\/$/, "");
 type Doc = { document_id: string; filename: string; chunks: number; characters: number };
 type Citation = { document_id: string; filename: string; page?: number | null; chunk_index: number; score: number; excerpt: string };
 type Message = { role: "user" | "assistant"; content: string; citations?: Citation[]; mode?: string; timings_ms?: { retrieval?: number; generation?: number; total?: number } };
