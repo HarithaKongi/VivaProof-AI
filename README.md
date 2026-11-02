@@ -1,97 +1,243 @@
 # VivaProof AI
 
-**Evidence-based AI for software project understanding and verification.**
+**Evidence-grounded project intelligence — ask questions about your documents and inspect the sources behind every answer.**
 
-VivaProof AI is an explainable Retrieval-Augmented Generation (RAG) workspace. Upload project documents, index them locally, ask questions, and inspect the retrieved evidence behind every answer.
+[![Backend quality checks](https://github.com/HarithaKongi/VivaProof-AI/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/HarithaKongi/VivaProof-AI/actions/workflows/backend-tests.yml)
+[![Live application](https://img.shields.io/badge/Live%20Demo-Open%20VivaProof-0ea5e9)](https://vivaproof-ai.onrender.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Current MVP
-- PDF, DOCX, TXT and Markdown ingestion.
-- Text extraction, overlapping chunking and source metadata.
-- Semantic embeddings with Sentence Transformers.
-- Persistent local vector search using Qdrant.
-- Optional Gemini generation with source-grounded prompting.
-- Citation cards showing source file, page/chunk, similarity score and excerpt.
-- React + TypeScript dashboard.
+VivaProof AI is a Retrieval-Augmented Generation (RAG) workspace for understanding project knowledge. Upload reports, specifications, notes and technical documents; retrieve relevant passages through semantic search; and ask Gemini to produce answers grounded in those passages. Each response includes inspectable source excerpts and document/page metadata.
+
+> **Live demo:** https://vivaproof-ai.onrender.com  
+> **API:** https://vivaproof-ai-api.onrender.com  
+> **API health:** https://vivaproof-ai-api.onrender.com/api/health  
+> **Interactive API docs:** https://vivaproof-ai-api.onrender.com/docs
+
+## What it does
+
+- Upload PDF, DOCX, TXT and Markdown documents.
+- Extract text and split it into overlapping chunks.
+- Generate semantic embeddings through Qdrant Cloud inference.
+- Store and search document chunks in a Qdrant Cloud collection.
+- Retrieve the most relevant passages for a question.
+- Generate evidence-grounded responses with Gemini.
+- Display source file, page/chunk, similarity score and the retrieved excerpt.
+- List indexed documents and delete a document with its stored chunks.
+- Report retrieval, generation and total request timings.
+- Fall back to evidence-only retrieval output when Gemini is not configured.
+
+## Product walkthrough
+
+1. Open the live demo.
+2. Upload one or more project documents.
+3. Wait for indexing to finish and confirm the files appear in Project Sources.
+4. Ask a question about the uploaded material.
+5. Inspect the retrieved evidence cards and verify the answer against the original documents.
+
+The live demo uses free-tier hosted services. Free instances may sleep when idle, and model response times or rate limits can vary. A slow first request does not necessarily mean retrieval is slow; the interface reports retrieval and generation timings separately.
 
 ## Architecture
-```
-React UI -> FastAPI -> Extraction -> Chunking -> Sentence Transformers
-                               -> Qdrant (local persistent storage)
-Question -> Query embedding -> Similarity retrieval -> Gemini (optional)
-                                                -> Answer + evidence citations
+
+```text
+                    ┌─────────────────────────┐
+                    │ React + TypeScript UI   │
+                    └────────────┬────────────┘
+                                 │ REST
+                    ┌────────────▼────────────┐
+                    │ FastAPI application     │
+                    └────────────┬────────────┘
+                                 │
+             ┌───────────────────┴──────────────────┐
+             │                                      │
+   Document ingestion                         Question answering
+             │                                      │
+   PDF / DOCX / TXT / MD                           Question
+             │                                      │
+       Text extraction                       Query embedding
+             │                                      │
+      Chunking + metadata                           │
+             │                                      │
+       Qdrant embedding/inference ────────────────► │
+             │                                      ▼
+       Qdrant Cloud collection ◄──────── Semantic retrieval
+                                                    │
+                                             Evidence context
+                                                    │
+                                               Gemini API
+                                                    │
+                                      Answer + source citations
+                                                    │
+                                             React evidence UI
 ```
 
-## Requirements
-- Python 3.11+
-- Node.js 20+
-- Gemini API key for generated answers (optional; retrieval-only mode works without it)
+## Technology stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React, TypeScript, Vite, CSS |
+| Backend | Python, FastAPI, Pydantic |
+| Document parsing | pypdf, python-docx |
+| Vector database | Qdrant Cloud |
+| Embeddings | Qdrant Cloud Inference — `sentence-transformers/all-MiniLM-L6-v2` |
+| Generation | Google Gemini API |
+| Hosting | Render |
+| Quality checks | pytest, GitHub Actions |
+
+## Repository structure
+
+```text
+VivaProof-AI/
+├── backend/
+│   ├── app/
+│   │   ├── config.py
+│   │   ├── main.py
+│   │   ├── schemas.py
+│   │   └── services.py
+│   ├── tests/
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   └── package.json
+├── .github/
+│   └── workflows/
+│       └── backend-tests.yml
+└── README.md
+```
 
 ## Run locally
 
-### Backend (Windows PowerShell)
+### Prerequisites
+
+- Python 3.11 or newer
+- Node.js 20 or newer
+- A Qdrant Cloud cluster and API key
+- A Gemini API key for generated answers (optional for retrieval-only mode)
+
+### 1. Configure the backend
+
+Windows PowerShell:
+
 ```powershell
 cd backend
 python -m venv .venv
-.venv\\Scripts\\Activate.ps1
-pip install -r requirements.txt
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 Copy-Item .env.example .env
-uvicorn app.main:app --reload
 ```
 
-### Backend (macOS/Linux)
+macOS / Linux:
+
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 cp .env.example .env
+```
+
+Set these values in `backend/.env`:
+
+```env
+QDRANT_URL=https://your-cluster-url
+QDRANT_API_KEY=your-qdrant-api-key
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+Use a model name currently available to your Gemini API account if the configured default is unavailable. Keep credentials private; never commit `.env` or paste secrets into issues.
+
+Start the API:
+
+```bash
 uvicorn app.main:app --reload
 ```
 
-API: http://localhost:8000 · Interactive docs: http://localhost:8000/docs
+API runs at http://localhost:8000.
 
-### Frontend
-Open a second terminal:
+### 2. Start the frontend
+
+In a second terminal:
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open http://localhost:5173.
 
-### Enable Gemini (optional)
-Add your key to `backend/.env`:
+Open http://localhost:5173. The frontend's default API URL points to the hosted backend. To use a local backend, create `frontend/.env.local`:
+
 ```env
-GEMINI_API_KEY=your_key_here
+VITE_API_URL=http://localhost:8000
 ```
-Never commit real API keys. Without a key, the app still indexes files and returns ranked evidence excerpts without pretending to generate an AI answer.
 
-## API endpoints
-| Method | Endpoint | Purpose |
+Restart Vite after changing environment variables.
+
+## API reference
+
+| Method | Route | Description |
 |---|---|---|
-| GET | `/api/health` | API and generation-mode status |
+| GET | `/` | API service information |
+| GET | `/api/health` | Health and configured service status |
 | POST | `/api/documents/upload` | Upload and index documents |
 | GET | `/api/documents` | List indexed documents |
-| DELETE | `/api/documents/{document_id}` | Remove a document's vectors |
-| POST | `/api/chat` | Retrieve evidence and answer a question |
+| DELETE | `/api/documents/{document_id}` | Delete a document and its vectors |
+| POST | `/api/chat` | Retrieve evidence and generate an answer |
 
-## Current limitations
-- Scanned/image-only PDFs need OCR; OCR is not included yet.
-- Qdrant currently runs in local persistent mode, suitable for development.
-- DOCX extraction currently reads paragraph text; tables and embedded objects need a future parser enhancement.
-- The current MVP does not yet ingest Git repositories or perform code-aware parsing.
-- Evidence retrieval and generated answers assist review; they do not certify project correctness.
+Example chat request:
 
-## Roadmap
-- [x] Document ingestion, chunking, embeddings and vector retrieval
-- [x] Optional grounded Gemini responses and source citations
-- [x] Initial React dashboard
-- [ ] Automated tests and retrieval evaluation
-- [ ] GitHub repository ingestion and code-aware parsing
-- [ ] Hybrid search, query rewriting and reranking
-- [ ] Claim/evidence matrix and contradiction analysis
-- [ ] Viva question generator
-- [ ] Authentication, hosted vector database and deployment
+```json
+{
+  "question": "What problem does this project solve?",
+  "top_k": 5
+}
+```
+
+The response includes `answer`, `citations`, `mode` and `timings_ms`. Each citation contains the document ID, filename, page (when available), chunk index, similarity score and excerpt.
+
+## Quality checks
+
+Run the backend tests locally:
+
+```bash
+cd backend
+python -m pip install -r requirements.txt
+python -m pytest -q
+```
+
+GitHub Actions runs the backend test suite on pushes and pull requests targeting the main/master branch. Tests cover chunk boundaries, overlap validation, text/Markdown extraction and unsupported file handling. They do not require live Qdrant or Gemini credentials.
+
+## Current scope and limitations
+
+- Scanned PDFs and image-only documents are not OCR-processed; they need selectable text.
+- DOCX extraction currently reads paragraph text, not tables, images or embedded objects.
+- The application is document-grounded; it does not yet clone or parse Git repositories.
+- Retrieved similarity scores are ranking signals, not calibrated confidence probabilities.
+- Generated answers can still be wrong. Always inspect the cited excerpts and original files.
+- Free hosting and API quotas can introduce cold starts, latency and rate limits.
+- This project is an evidence-assistance tool, not a certification that a software project is secure, correct or complete.
+
+## Release checklist
+
+- [x] Document upload and text extraction (PDF, DOCX, TXT, MD)
+- [x] Chunking with overlap and source metadata
+- [x] Semantic embeddings and Qdrant vector storage
+- [x] Top-k semantic evidence retrieval
+- [x] Gemini grounded answer generation
+- [x] Source citations and evidence inspection in the UI
+- [x] Document listing and deletion
+- [x] API health endpoint and request timing metrics
+- [x] Friendly handling of transient Gemini service errors
+- [x] Backend unit tests and automated GitHub Actions checks
+- [x] Local setup instructions, API documentation and limitations
+- [ ] OCR for scanned PDFs
+- [ ] DOCX table extraction
+- [ ] GitHub repository ingestion and code-aware retrieval
+- [ ] Hybrid keyword + vector search and reranking
+- [ ] Evaluation dataset with retrieval precision/recall metrics
+- [ ] Authentication and per-user workspaces
+
+The checked items describe the implemented release. Unchecked items are future enhancements, not features currently included.
 
 ## License
+
 MIT
