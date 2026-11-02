@@ -4,7 +4,7 @@ import { Activity, ArrowUpRight, Bot, CheckCircle2, FileText, FolderOpen, Loader
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 type Doc = { document_id: string; filename: string; chunks: number; characters: number };
 type Citation = { document_id: string; filename: string; page?: number | null; chunk_index: number; score: number; excerpt: string };
-type Message = { role: "user" | "assistant"; content: string; citations?: Citation[]; mode?: string };
+type Message = { role: "user" | "assistant"; content: string; citations?: Citation[]; mode?: string; timings_ms?: { retrieval?: number; generation?: number; total?: number } };
 
 export default function App() {
   const [documents, setDocuments] = useState<Doc[]>([]);
@@ -65,8 +65,8 @@ export default function App() {
         body: JSON.stringify({ question: text }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.detail || "Could not get an answer");
-      setMessages(prev => [...prev, { role: "assistant", content: body.answer, citations: body.citations, mode: body.mode }]);
+      if (!response.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Could not get an answer");
+      setMessages(prev => [...prev, { role: "assistant", content: body.answer, citations: body.citations, mode: body.mode, timings_ms: body.timings_ms }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: "assistant", content: error instanceof Error ? error.message : "Something went wrong." }]);
     } finally { setBusy(false); }
@@ -120,10 +120,10 @@ export default function App() {
                     <p>{citation.excerpt}</p>
                   </details>)}
                 </div>}
-                {message.mode && <div className="mode-label">{message.mode === "gemini_rag" ? "✦ Gemini grounded generation" : message.mode === "retrieval_only" ? "Evidence retrieval mode · Gemini not configured" : "No evidence found"}</div>}
+                {message.mode && <div className="mode-label">{message.mode === "gemini_rag" ? "✦ Gemini grounded generation" : message.mode === "retrieval_only" ? "Evidence retrieval mode · Gemini not configured" : "No evidence found"}{message.timings_ms?.total !== undefined && <span> · {message.timings_ms.total < 1000 ? `${message.timings_ms.total} ms` : `${(message.timings_ms.total / 1000).toFixed(1)} s`} total (retrieval {(message.timings_ms.retrieval ?? 0) / 1000}s · generation {(message.timings_ms.generation ?? 0) / 1000}s)</span>}</div>}
               </div>
             </article>)}
-            {busy && <div className="typing"><Loader2 size={16}/> Searching your project evidence…</div>}
+            {busy && <div className="typing"><Loader2 size={16}/> Searching evidence and generating a grounded answer… On a free server, the first request after inactivity may take longer.</div>}
             <div ref={bottomRef}/>
           </div>
           <form className="composer" onSubmit={ask}>
