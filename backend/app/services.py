@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -20,7 +21,6 @@ _gemini_client: Any = None
 
 def vector_db() -> QdrantClient:
     global _client
-    # Trim accidental spaces/newlines copied into Render environment variables.
     qdrant_url = settings.qdrant_url.strip()
     qdrant_api_key = settings.qdrant_api_key.strip()
     if not qdrant_url or not qdrant_api_key:
@@ -29,10 +29,7 @@ def vector_db() -> QdrantClient:
         )
     if _client is None:
         _client = QdrantClient(
-            url=qdrant_url,
-            api_key=qdrant_api_key,
-            cloud_inference=True,
-            timeout=45,
+            url=qdrant_url, api_key=qdrant_api_key, cloud_inference=True, timeout=45
         )
         if not _client.collection_exists(settings.collection_name):
             _client.create_collection(
@@ -87,7 +84,6 @@ def index_document(filename: str, content: bytes) -> dict[str, Any]:
             records.append({"text": chunk, "page": page["page"], "chunk_index": len(records)})
     if not records:
         raise ValueError("No readable text found. Scanned PDFs need OCR before indexing.")
-
     client = vector_db()
     points = [
         models.PointStruct(
@@ -156,6 +152,16 @@ def retrieve(question: str, top_k: int | None = None) -> list[dict[str, Any]]:
     } for p in response.points]
 
 
+def _is_temporary_model_error(exc: Exception) -> bool:
+    """Retry only transient Gemini rate-limit and server errors."""
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    message = str(exc).lower()
+    return status in (429, 500, 502, 503, 504) or any(
+        marker in message for marker in ("503 unavailable", "429 resource_exhausted",
+                                         "500 internal", "502 bad gateway", "504 deadline")
+    )
+
+
 def generate_answer(question: str, citations: list[dict[str, Any]]) -> tuple[str, str]:
     if not citations:
         return "No indexed evidence was found. Upload relevant project files and try again.", "no_evidence"
@@ -186,5 +192,20 @@ QUESTION:
 RETRIEVED EVIDENCE:
 {context}
 """
-    response = _gemini_client.models.generate_content(model=settings.gemini_model, contents=prompt)
-    return response.text or "The model returned an empty response.", "gemini_rag"
+    # Free-tier model capacity can fluctuate. Retry transient 429/5xx errors twice;
+    # never retry invalid requests or authentication/configuration failures.
+    for attempt in range(3):
+        try:
+            response = _gemini_client.models.generate_content(
+                model=settings.gemini_model, contents=prompt
+            )
+            return response.text or "The model returned an empty response.", "gemini_rag"
+        except Exception as exc:
+            if attempt == 2 or not _is_temporary_model_error(exc):
+                if _is_temporary_model_error(exc):
+                    raise RuntimeError(
+                        "Gemini is temporarily busy or rate-limited. Your evidence was retrieved; please retry in a minute."
+                    ) from exc
+                raise
+            time.sleep(1.0 * (2 ** attempt))
+    return "Gemini could not generate an answer. Please try again.", "temporary_error"
