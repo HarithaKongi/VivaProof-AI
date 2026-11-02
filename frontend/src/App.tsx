@@ -100,7 +100,7 @@ export default function App() {
     setPage("dashboard");
   }
   async function sendPasswordReset() {
-    if (!supabase || !session.user.email) return;
+    if (!supabase || !session || !session.user.email) return;
     const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, { redirectTo: window.location.origin });
     setNotice(error ? "Could not send a password reset email. Please try again." : "If your account email is eligible, a secure password reset link has been sent.");
   }
