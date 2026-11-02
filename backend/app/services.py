@@ -75,7 +75,7 @@ def chunk_text(text: str, size: int | None = None, overlap: int | None = None) -
     return chunks
 
 
-def index_document(filename: str, content: bytes) -> dict[str, Any]:
+def index_document(filename: str, content: bytes, owner_id: str) -> dict[str, Any]:
     document_id = str(uuid.uuid4())
     pages = extract_file(filename, content)
     records: list[dict[str, Any]] = []
@@ -90,7 +90,7 @@ def index_document(filename: str, content: bytes) -> dict[str, Any]:
             id=str(uuid.uuid4()),
             vector=models.Document(text=record["text"], model=settings.embedding_model),
             payload={**record, "document_id": document_id, "filename": filename,
-                     "content_hash": hashlib.sha256(content).hexdigest()},
+                     "content_hash": hashlib.sha256(content).hexdigest(), "owner_id": owner_id},
         )
         for record in records
     ]
@@ -101,7 +101,7 @@ def index_document(filename: str, content: bytes) -> dict[str, Any]:
             "characters": sum(len(r["text"]) for r in records)}
 
 
-def list_documents() -> list[dict[str, Any]]:
+def list_documents(owner_id: str) -> list[dict[str, Any]]:
     client = vector_db()
     documents: dict[str, dict[str, Any]] = {}
     offset = None
@@ -109,6 +109,9 @@ def list_documents() -> list[dict[str, Any]]:
         points, offset = client.scroll(
             collection_name=settings.collection_name, limit=256, offset=offset,
             with_payload=True, with_vectors=False,
+            scroll_filter=models.Filter(must=[
+                models.FieldCondition(key="owner_id", match=models.MatchValue(value=owner_id))
+            ]),
         )
         for point in points:
             payload = point.payload or {}
@@ -125,22 +128,26 @@ def list_documents() -> list[dict[str, Any]]:
     return list(documents.values())
 
 
-def delete_document(document_id: str) -> None:
+def delete_document(document_id: str, owner_id: str) -> None:
     from qdrant_client.models import Filter, FieldCondition, MatchValue
     vector_db().delete(
         collection_name=settings.collection_name,
         points_selector=models.FilterSelector(filter=Filter(must=[
-            FieldCondition(key="document_id", match=MatchValue(value=document_id))
+            FieldCondition(key="document_id", match=MatchValue(value=document_id)),
+            FieldCondition(key="owner_id", match=MatchValue(value=owner_id)),
         ])),
     )
 
 
-def retrieve(question: str, top_k: int | None = None) -> list[dict[str, Any]]:
+def retrieve(question: str, top_k: int | None, owner_id: str) -> list[dict[str, Any]]:
     response = vector_db().query_points(
         collection_name=settings.collection_name,
         query=models.Document(text=question, model=settings.embedding_model),
         limit=top_k or settings.top_k,
         with_payload=True,
+        query_filter=models.Filter(must=[
+            models.FieldCondition(key="owner_id", match=models.MatchValue(value=owner_id))
+        ]),
     )
     return [{
         "document_id": (p.payload or {}).get("document_id", ""),
