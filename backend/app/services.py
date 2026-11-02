@@ -20,14 +20,17 @@ _gemini_client: Any = None
 
 def vector_db() -> QdrantClient:
     global _client
-    if not settings.qdrant_url or not settings.qdrant_api_key:
+    # Trim accidental spaces/newlines copied into Render environment variables.
+    qdrant_url = settings.qdrant_url.strip()
+    qdrant_api_key = settings.qdrant_api_key.strip()
+    if not qdrant_url or not qdrant_api_key:
         raise RuntimeError(
             "Vector database is not configured. Add QDRANT_URL and QDRANT_API_KEY in the backend environment."
         )
     if _client is None:
         _client = QdrantClient(
-            url=settings.qdrant_url,
-            api_key=settings.qdrant_api_key,
+            url=qdrant_url,
+            api_key=qdrant_api_key,
             cloud_inference=True,
             timeout=45,
         )
@@ -167,7 +170,7 @@ def generate_answer(question: str, citations: list[dict[str, Any]]) -> tuple[str
     global _gemini_client
     if _gemini_client is None:
         from google import genai
-        _gemini_client = genai.Client(api_key=settings.gemini_api_key)
+        _gemini_client = genai.Client(api_key=settings.gemini_api_key.strip())
     context = "\n\n".join(
         f"[Source {i + 1}: {c['filename']}, page {c['page'] or 'N/A'}]\n{c['excerpt']}"
         for i, c in enumerate(citations)
