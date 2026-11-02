@@ -8,7 +8,7 @@ export function LandingPage({ onSignIn, onSignUp }: { onSignIn: () => void; onSi
       <a className="wordmark" href="#home"><span className="logo-symbol"><ShieldCheck size={20}/></span><span>VIVA<span className="wordmark-light">PROOF</span></span></a>
       <button className="mobile-menu" onClick={() => setMenuOpen(v => !v)} aria-label="Toggle navigation">{menuOpen ? <X/> : <Menu/>}</button>
       <nav className={menuOpen ? "marketing-links open" : "marketing-links"}>
-        <a href="#home" onClick={() => setMenuOpen(false)}>Home</a><a href="#features" onClick={() => setMenuOpen(false)}>Features</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a>
+        <a href="#home" onClick={() => setMenuOpen(false)}>Home</a><a href="#features" onClick={() => setMenuOpen(false)}>Features</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#about" onClick={() => setMenuOpen(false)}>About</a><a href="#contact" onClick={() => setMenuOpen(false)}>Contact</a>
         <button className="nav-signin" onClick={onSignIn}>Sign in</button><button className="button-primary nav-cta" onClick={onSignUp}>Create account <ArrowUpRight size={15}/></button>
       </nav>
     </header>
@@ -48,6 +48,6 @@ export function LandingPage({ onSignIn, onSignUp }: { onSignIn: () => void; onSi
       <div className="steps-list"><div><span>01</span><section><b>Bring your project knowledge</b><p>Upload PDF, DOCX, TXT or Markdown files.</p></section><Check size={17}/></div><div><span>02</span><section><b>Ask a specific question</b><p>Semantic retrieval finds relevant passages in your sources.</p></section><Check size={17}/></div><div><span>03</span><section><b>Review the proof</b><p>Read the answer and open its supporting evidence.</p></section><Check size={17}/></div></div>
     </section>
     <section className="closing-cta"><div><span className="section-eyebrow">MAKE YOUR PROJECT KNOWLEDGE WORK HARDER</span><h2>Clarity starts with the evidence.</h2><p>Build a private workspace for the questions behind your project.</p></div><button className="button-primary button-large" onClick={onSignUp}>Get started for free <ArrowRight size={17}/></button></section>
-    <footer className="marketing-footer"><a className="wordmark" href="#home"><span className="logo-symbol"><ShieldCheck size={18}/></span><span>VIVA<span className="wordmark-light">PROOF</span></span></a><span>Evidence-grounded project intelligence.</span><a href="mailto:hello@vivaproof.ai">Contact <ArrowUpRight size={13}/></a><small>© {new Date().getFullYear()} VivaProof. Built for explainable project knowledge.</small></footer>
+    <footer className="marketing-footer" id="contact"><a className="wordmark" href="#home"><span className="logo-symbol"><ShieldCheck size={18}/></span><span>VIVA<span className="wordmark-light">PROOF</span></span></a><span>Evidence-grounded project intelligence.</span><a href="mailto:hello@vivaproof.ai">Contact <ArrowUpRight size={13}/></a><small>© {new Date().getFullYear()} VivaProof. Built for explainable project knowledge.</small></footer>
   </main>;
 }
