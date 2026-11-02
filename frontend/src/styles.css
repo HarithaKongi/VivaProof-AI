@@ -19,3 +19,23 @@
 .auth-text-button{display:block;margin:15px auto 0;border:0;background:transparent;color:#cdb47e;font-size:11px}.auth-switch{text-align:center;color:#9299a8;font-size:11px;margin-top:23px}.auth-switch button{border:0;background:transparent;color:#dfc58f;font-weight:700;margin-left:4px}
 .auth-security{display:flex;align-items:center;justify-content:center;gap:7px;border-top:1px solid rgba(167,174,195,.12);margin-top:25px;padding-top:17px;color:#818a9d;font-size:9px}.auth-security svg{color:#c5a96f}.auth-caption{position:absolute;bottom:20px;color:#677188;font:9px 'DM Mono';letter-spacing:1.3px}.auth-caption span{color:#cdb47e;margin:0 7px}.auth-loading{display:flex;flex-direction:column;align-items:center;gap:12px;color:#cdb47e;font-size:12px}.profile-email{min-width:0;flex:1}.profile-email strong{max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.logout-button{border:1px solid var(--line);background:#121a2a;color:#aebbd0;border-radius:8px;width:30px;height:30px;display:grid;place-items:center}.logout-button:hover{color:#e0c38a;border-color:rgba(218,187,126,.35)}
 @media(max-width:760px){.auth-card{padding:29px 23px 23px}.auth-brand{margin-bottom:30px}.auth-card h1{font-size:24px}.auth-caption{font-size:8px;white-space:nowrap}}
+
+
+/* Unified midnight-and-champagne royal palette */
+:root{--blue:#d3b477}
+body{background:radial-gradient(ellipse at 72% -20%,rgba(153,117,55,.16),transparent 42%),#080b14}
+.brand-mark{color:#e0c58f;background:linear-gradient(145deg,#514126,#211d18);border-color:rgba(211,180,119,.4)}
+.brand-ai,.profile-activity,.welcome-icon,.empty-orbit,.sources-heading,.icon-button{color:#d8bd84}
+.nav-item.active{color:#f0dfbd;background:rgba(157,121,57,.13);border-color:rgba(211,180,119,.2)}
+.nav-dot{background:#d3b477}
+.welcome-icon{border-color:rgba(211,180,119,.28);background:rgba(157,121,57,.12)}
+.empty-orbit{background:rgba(157,121,57,.12);border-color:rgba(211,180,119,.22);box-shadow:0 0 40px rgba(157,121,57,.1)}
+.composer{border-color:rgba(211,180,119,.27)}
+.send-button{background:linear-gradient(120deg,#b99557,#e0c58f);color:#17140e}
+.suggestions button:hover{border-color:#b99557;color:#f1dfbd}
+.upload-zone{border-color:rgba(211,180,119,.35);background:rgba(157,121,57,.07);color:#dfc38b}
+.upload-zone:hover{background:rgba(157,121,57,.14)}
+.stats-row strong{color:#f0dfbd}
+.file-icon{background:#2c261b;color:#d8bd84}
+.step-number{color:#d8bd84;background:#2b251a}
+.sources-heading{color:#d8bd84}
