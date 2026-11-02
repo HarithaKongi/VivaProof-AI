@@ -41,7 +41,7 @@ export function AuthScreen({ recovery = false }: { recovery?: boolean }) {
     } finally { setBusy(false); }
   }
 
-  if (!supabase) return <main className="auth-shell"><section className="auth-card"><div className="auth-brand"><span className="brand-mark"><ShieldCheck size={22}/></span>VivaProof<span>.AI</span></div><h1>Almost ready.</h1><p>Add the Supabase project URL and publishable key to your frontend environment settings to enable secure sign-in.</p><code>VITE_SUPABASE_URL</code><code>VITE_SUPABASE_ANON_KEY</code></section></main>;
+  if (!supabase) return <main className="auth-shell"><section className="auth-card"><div className="auth-brand"><span className="brand-mark"><ShieldCheck size={22}/></span>VivaProof<span>.AI</span></div><h1>Almost ready.</h1><p>Add the Supabase project URL and publishable key to your frontend environment settings to enable secure sign-in.</p><code>VITE_SUPABASE_URL</code><code>VITE_SUPABASE_PUBLISHABLE_KEY</code></section></main>;
 
   return <main className="auth-shell">
     <div className="auth-glow"/>
