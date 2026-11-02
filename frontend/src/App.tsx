@@ -13,6 +13,7 @@ type Message = { role: "user" | "assistant"; content: string; citations?: Citati
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
@@ -41,7 +42,8 @@ export default function App() {
       setSession(data.session);
       setAuthLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
       setSession(nextSession);
       setAuthLoading(false);
     });
@@ -94,6 +96,7 @@ export default function App() {
   }
 
   if (authLoading) return <main className="auth-shell"><div className="auth-loading"><span className="brand-mark"><ShieldCheck size={22}/></span><p>Securing your workspace…</p></div></main>;
+  if (recoveryMode) return <AuthScreen recovery />;
   if (!session) return <AuthScreen />;
 
   return <main className="app-shell">
