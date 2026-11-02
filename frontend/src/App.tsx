@@ -99,7 +99,7 @@ export default function App() {
     if (supabase) await supabase.auth.updateUser({ data: { onboarding_completed: true } });
     setPage("dashboard");
   }
-  async function saveProfile(event: React.FormEvent) {
+  async function sendPasswordReset() {\n    if (!supabase || !session.user.email) return;\n    const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, { redirectTo: window.location.origin });\n    setNotice(error ? "Could not send a password reset email. Please try again." : "If your account email is eligible, a secure password reset link has been sent.");\n  }\n  async function saveProfile(event: React.FormEvent) {
     event.preventDefault(); if (!supabase || !session) return;
     setSavingProfile(true); setNotice("");
     try {
@@ -169,7 +169,7 @@ export default function App() {
           </aside></div>
         </div>}
         {page === "settings" && <div className="settings-page"><div className="settings-heading"><span className="section-eyebrow">YOUR ACCOUNT</span><h2>Profile & settings</h2><p>Manage the details associated with your VivaProof account.</p></div><div className="settings-card"><div className="settings-card-title"><span className="settings-icon"><UserRound/></span><div><b>Profile information</b><small>Update how your name appears in your workspace.</small></div></div><form className="settings-form" onSubmit={saveProfile}><label htmlFor="profile-name">Full name</label><input id="profile-name" value={profileName} onChange={e=>setProfileName(e.target.value)} placeholder="Your full name"/><label htmlFor="profile-email">Email address</label><input id="profile-email" value={profileEmail} disabled/><small className="field-help">Email changes are managed through your authentication provider.</small><button className="button-primary" disabled={savingProfile}>{savingProfile?"Saving…":"Save profile"} <ArrowRight size={15}/></button></form></div>
-          <div className="settings-card"><div className="settings-card-title"><span className="settings-icon"><ShieldCheck/></span><div><b>Security & session</b><small>Your account is protected by Supabase authentication.</small></div></div><div className="settings-row"><span>Signed in as</span><b>{session.user.email}</b></div><div className="settings-row"><span>Session status</span><b className="secure-label">Authenticated</b></div><button className="button-secondary settings-logout" onClick={()=>void supabase?.auth.signOut()}><LogOut size={15}/> Sign out of VivaProof</button></div>
+          <div className="settings-card"><div className="settings-card-title"><span className="settings-icon"><ShieldCheck/></span><div><b>Security & session</b><small>Your account is protected by Supabase authentication.</small></div></div><div className="settings-row"><span>Signed in as</span><b>{session.user.email}</b></div><div className="settings-row"><span>Session status</span><b className="secure-label">Authenticated</b></div><button className="button-secondary settings-logout" onClick={()=>void sendPasswordReset()}><ShieldCheck size={15}/> Send password reset link</button><button className="button-secondary settings-logout" onClick={()=>void supabase?.auth.signOut()}><LogOut size={15}/> Sign out of VivaProof</button></div>
         </div>}
       </div>
       <footer className="app-footer"><span>VIVA<span>PROOF</span> · EVIDENCE-GROUNDED PROJECT KNOWLEDGE</span><span>YOUR SOURCES. YOUR ANSWERS.</span></footer>
