@@ -1,9 +1,10 @@
 from pathlib import Path
 from time import perf_counter
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth import require_user
 from app.config import get_settings
 from app.schemas import ChatRequest, ChatResponse, Citation, SourceDocument, UploadResponse
 from app.services import SUPPORTED_EXTENSIONS, delete_document, generate_answer, index_document, list_documents, retrieve
@@ -12,7 +13,7 @@ settings = get_settings()
 app = FastAPI(
     title="VivaProof AI API",
     description="Evidence-grounded RAG for software project understanding.",
-    version="0.3.0",
+    version="0.4.0",
 )
 
 app.add_middleware(
@@ -36,11 +37,12 @@ def health():
         "service": "VivaProof AI",
         "vector_store_configured": bool(settings.qdrant_url and settings.qdrant_api_key),
         "generation": "gemini" if settings.gemini_api_key else "retrieval-only",
+        "authentication_configured": bool(settings.supabase_url),
     }
 
 
 @app.post("/api/documents/upload", response_model=UploadResponse)
-async def upload_documents(files: list[UploadFile] = File(...)):
+async def upload_documents(files: list[UploadFile] = File(...), user_id: str = Depends(require_user)):
     uploaded, errors = [], []
     for file in files:
         filename = Path(file.filename or "upload").name
@@ -52,7 +54,7 @@ async def upload_documents(files: list[UploadFile] = File(...)):
             errors.append(f"{filename}: exceeds {settings.max_upload_mb} MB limit")
             continue
         try:
-            uploaded.append(SourceDocument(**index_document(filename, content)))
+            uploaded.append(SourceDocument(**index_document(filename, content, user_id)))
         except Exception as exc:
             errors.append(f"{filename}: {exc}")
     if not uploaded:
@@ -64,28 +66,28 @@ async def upload_documents(files: list[UploadFile] = File(...)):
 
 
 @app.get("/api/documents", response_model=list[SourceDocument])
-def documents():
+def documents(user_id: str = Depends(require_user)):
     try:
-        return [SourceDocument(**item) for item in list_documents()]
+        return [SourceDocument(**item) for item in list_documents(user_id)]
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Document storage is temporarily unavailable. Please retry.") from exc
 
 
 @app.delete("/api/documents/{document_id}")
-def remove_document(document_id: str):
+def remove_document(document_id: str, user_id: str = Depends(require_user)):
     try:
-        delete_document(document_id)
+        delete_document(document_id, user_id)
         return {"deleted": True, "document_id": document_id}
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Could not delete this document right now. Please retry.") from exc
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, user_id: str = Depends(require_user)):
     started = perf_counter()
     try:
         retrieval_started = perf_counter()
-        citations = retrieve(request.question, request.top_k)
+        citations = retrieve(request.question, request.top_k, user_id)
         retrieval_ms = round((perf_counter() - retrieval_started) * 1000)
 
         generation_started = perf_counter()
