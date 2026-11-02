@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Activity, ArrowUpRight, Bot, CheckCircle2, FileText, FolderOpen, Loader2, LogOut, MessageSquare, Paperclip, Plus, Send, Settings, ShieldCheck, Sparkles, Layers3, Trash2, UploadCloud, UserRound, X, Menu, Clock3 } from "lucide-react";
+import { Activity, ArrowRight, ArrowUpRight, Bot, CheckCircle2, FileText, FolderOpen, Loader2, LogOut, MessageSquare, Paperclip, Plus, Send, Settings, ShieldCheck, Sparkles, Layers3, Trash2, UploadCloud, UserRound, X, Menu, Clock3 } from "lucide-react";
 import { AuthScreen } from "./AuthScreen";
 import { LandingPage } from "./LandingPage";
 import { Onboarding } from "./Onboarding";
@@ -99,7 +99,12 @@ export default function App() {
     if (supabase) await supabase.auth.updateUser({ data: { onboarding_completed: true } });
     setPage("dashboard");
   }
-  async function sendPasswordReset() {\n    if (!supabase || !session.user.email) return;\n    const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, { redirectTo: window.location.origin });\n    setNotice(error ? "Could not send a password reset email. Please try again." : "If your account email is eligible, a secure password reset link has been sent.");\n  }\n  async function saveProfile(event: React.FormEvent) {
+  async function sendPasswordReset() {
+    if (!supabase || !session.user.email) return;
+    const { error } = await supabase.auth.resetPasswordForEmail(session.user.email, { redirectTo: window.location.origin });
+    setNotice(error ? "Could not send a password reset email. Please try again." : "If your account email is eligible, a secure password reset link has been sent.");
+  }
+  async function saveProfile(event: React.FormEvent) {
     event.preventDefault(); if (!supabase || !session) return;
     setSavingProfile(true); setNotice("");
     try {
