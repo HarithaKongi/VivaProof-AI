@@ -1,4 +1,5 @@
 from pathlib import Path
+from time import perf_counter
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,10 +12,9 @@ settings = get_settings()
 app = FastAPI(
     title="VivaProof AI API",
     description="Evidence-grounded RAG for software project understanding.",
-    version="0.2.0",
+    version="0.3.0",
 )
 
-# The API is public and does not use cookie-based authentication.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -68,7 +68,7 @@ def documents():
     try:
         return [SourceDocument(**item) for item in list_documents()]
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail="Document storage is temporarily unavailable. Please retry.") from exc
 
 
 @app.delete("/api/documents/{document_id}")
@@ -77,14 +77,38 @@ def remove_document(document_id: str):
         delete_document(document_id)
         return {"deleted": True, "document_id": document_id}
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail="Could not delete this document right now. Please retry.") from exc
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
+    started = perf_counter()
     try:
+        retrieval_started = perf_counter()
         citations = retrieve(request.question, request.top_k)
+        retrieval_ms = round((perf_counter() - retrieval_started) * 1000)
+
+        generation_started = perf_counter()
         answer, mode = generate_answer(request.question, citations)
-        return ChatResponse(answer=answer, citations=[Citation(**item) for item in citations], mode=mode)
+        generation_ms = round((perf_counter() - generation_started) * 1000)
+
+        return ChatResponse(
+            answer=answer,
+            citations=[Citation(**item) for item in citations],
+            mode=mode,
+            timings_ms={
+                "retrieval": retrieval_ms,
+                "generation": generation_ms,
+                "total": round((perf_counter() - started) * 1000),
+            },
+        )
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"RAG request failed: {exc}") from exc
+        message = str(exc)
+        if "temporarily busy or rate-limited" in message:
+            raise HTTPException(status_code=503, detail=message) from exc
+        if "not configured" in message.lower():
+            raise HTTPException(status_code=503, detail=message) from exc
+        raise HTTPException(
+            status_code=503,
+            detail="VivaProof could not complete this request because a connected service is temporarily unavailable. Please retry shortly.",
+        ) from exc
