@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { LogOut } from "lucide-react";
+import { AuthScreen } from "./AuthScreen";
+import { supabase } from "./supabase";
 import { Activity, ArrowUpRight, Bot, CheckCircle2, FileText, FolderOpen, Loader2, MessageSquare, Paperclip, Plus, Send, ShieldCheck, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
 
 const API = (import.meta.env.VITE_API_URL || "https://vivaproof-ai-api.onrender.com").replace(/\/$/, "");
@@ -7,6 +11,8 @@ type Citation = { document_id: string; filename: string; page?: number | null; c
 type Message = { role: "user" | "assistant"; content: string; citations?: Citation[]; mode?: string; timings_ms?: { retrieval?: number; generation?: number; total?: number } };
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
@@ -18,18 +24,33 @@ export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  async function load() {
+  async function load(accessToken: string) {
     try {
       const h = await fetch(`${API}/api/health`);
       if (!h.ok) throw new Error("API unavailable");
       const status = await h.json();
       setHealth("online");
       setStorageConfigured(Boolean(status.vector_store_configured));
-      const d = await fetch(`${API}/api/documents`);
+      const d = await fetch(`${API}/api/documents`, { headers: { Authorization: `Bearer ${accessToken}` } });
       setDocuments(d.ok ? await d.json() : []);
     } catch { setHealth("offline"); setDocuments([]); }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!supabase) { setAuthLoading(false); return; }
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthLoading(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+  useEffect(() => {
+    if (session?.access_token) void load(session.access_token);
+    else { setDocuments([]); setMessages([]); }
+  }, [session?.access_token]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   async function upload(files: FileList | null) {
@@ -38,19 +59,19 @@ export default function App() {
     const data = new FormData();
     Array.from(files).forEach(file => data.append("files", file));
     try {
-      const response = await fetch(`${API}/api/documents/upload`, { method: "POST", body: data });
+      const response = await fetch(`${API}/api/documents/upload`, { method: "POST", headers: { Authorization: `Bearer ${session?.access_token || ""}` }, body: data });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail || "Upload failed");
-      setNotice(body.message || "Files indexed successfully."); await load();
+      setNotice(body.message || "Files indexed successfully."); if (session) await load(session.access_token);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Upload failed."); }
     finally { setUploading(false); if (inputRef.current) inputRef.current.value = ""; }
   }
 
   async function remove(id: string) {
     try {
-      const response = await fetch(`${API}/api/documents/${id}`, { method: "DELETE" });
+      const response = await fetch(`${API}/api/documents/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${session?.access_token || ""}` } });
       if (!response.ok) throw new Error("Could not remove document");
-      await load();
+      if (session) await load(session.access_token);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Delete failed."); }
   }
 
@@ -61,7 +82,7 @@ export default function App() {
     setMessages(prev => [...prev, { role: "user", content: text }]); setQuestion(""); setBusy(true);
     try {
       const response = await fetch(`${API}/api/chat`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
         body: JSON.stringify({ question: text }),
       });
       const body = await response.json();
@@ -71,6 +92,9 @@ export default function App() {
       setMessages(prev => [...prev, { role: "assistant", content: error instanceof Error ? error.message : "Something went wrong." }]);
     } finally { setBusy(false); }
   }
+
+  if (authLoading) return <main className="auth-shell"><div className="auth-loading"><span className="brand-mark"><ShieldCheck size={22}/></span><p>Securing your workspace…</p></div></main>;
+  if (!session) return <AuthScreen />;
 
   return <main className="app-shell">
     <aside className="sidebar">
@@ -84,7 +108,7 @@ export default function App() {
         <strong>Evidence, not guesses.</strong>
         <p>Every answer is grounded in the project files you provide.</p>
       </div>
-      <div className="profile"><div className="avatar">VP</div><div><strong>Project workspace</strong><span>Personal environment</span></div><Activity size={16} className="profile-activity"/></div>
+      <div className="profile"><div className="avatar">{(session.user.email || "VP").slice(0, 2).toUpperCase()}</div><div className="profile-email"><strong>{session.user.email || "Your account"}</strong><span>Private workspace</span></div><button className="logout-button" title="Sign out" aria-label="Sign out" onClick={() => void supabase?.auth.signOut()}><LogOut size={16}/></button></div>
     </aside>
 
     <section className="main-panel">
