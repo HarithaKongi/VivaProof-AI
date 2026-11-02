@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.8-flash"
     qdrant_url: str = ""
     qdrant_api_key: str = ""
+    supabase_url: str = ""
     collection_name: str = "vivaproof_chunks"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_size: int = 384
