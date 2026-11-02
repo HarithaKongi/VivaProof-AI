@@ -1,69 +1,80 @@
 import { useState } from "react";
-import { ArrowRight, Eye, EyeOff, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, ShieldCheck, Sparkles, Check } from "lucide-react";
 import { supabase } from "./supabase";
 
-export function AuthScreen({ recovery = false }: { recovery?: boolean }) {
-  const [mode, setMode] = useState<"signin" | "signup" | "reset" | "update">(recovery ? "update" : "signin");
+type Mode = "signin" | "signup" | "reset" | "update";
+export function AuthScreen({ recovery = false, initialMode = "signin", onBack }: { recovery?: boolean; initialMode?: "signin" | "signup"; onBack?: () => void }) {
+  const [mode, setMode] = useState<Mode>(recovery ? "update" : initialMode);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const strength = [password.length >= 8, /[A-Z]/.test(password) && /[a-z]/.test(password), /\d/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length;
+  const strengthLabel = ["Add a password", "Weak", "Fair", "Good", "Strong"][password ? strength : 0];
 
+  function switchMode(next: Mode) { setMode(next); setError(""); setNotice(""); setPassword(""); setConfirmPassword(""); }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!supabase) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      if (mode === "update") {
+      if (mode === "signup") {
+        if (!name.trim()) throw new Error("Enter your full name.");
+        if (password.length < 8) throw new Error("Use at least 8 characters for your password.");
+        if (password !== confirmPassword) throw new Error("Your passwords do not match.");
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name.trim() }, emailRedirectTo: window.location.origin } });
+        if (error) throw error;
+        setNotice(data.session ? "Your account is ready. Welcome to VivaProof." : "Account created. Check your inbox to confirm your email, then sign in.");
+        if (data.session) switchMode("signin");
+      } else if (mode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
+      } else if (mode === "reset") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+        if (error) throw error;
+        setNotice("If an account exists for this email, a password reset link has been sent.");
+      } else {
+        if (password.length < 8) throw new Error("Use at least 8 characters for your password.");
+        if (password !== confirmPassword) throw new Error("Your passwords do not match.");
         const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
         await supabase.auth.signOut();
         setNotice("Password updated. Please sign in with your new password.");
-        setMode("signin");
-        setPassword("");
-      } else if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setNotice(data.session ? "Your account is ready. Welcome to VivaProof AI." : "Account created. Check your email to confirm your address, then sign in.");
-        if (data.session) setMode("signin");
-      } else if (mode === "reset") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-        if (error) throw error;
-        setNotice("If an account exists for this email, a password reset link has been sent.");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        switchMode("signin");
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
-    } finally { setBusy(false); }
+    } catch (err) { setError(err instanceof Error ? err.message : "Authentication failed. Please try again."); }
+    finally { setBusy(false); }
   }
-
-  if (!supabase) return <main className="auth-shell"><section className="auth-card"><div className="auth-brand"><span className="brand-mark"><ShieldCheck size={22}/></span>VivaProof<span>.AI</span></div><h1>Almost ready.</h1><p>Add the Supabase project URL and publishable key to your frontend environment settings to enable secure sign-in.</p><code>VITE_SUPABASE_URL</code><code>VITE_SUPABASE_PUBLISHABLE_KEY</code></section></main>;
-
-  return <main className="auth-shell">
-    <div className="auth-glow"/>
-    <section className="auth-card">
-      <div className="auth-brand"><span className="brand-mark"><ShieldCheck size={22}/></span>VivaProof<span>.AI</span></div>
-      <div className="auth-emblem"><Sparkles size={22}/></div>
-      <div className="eyebrow">YOUR PRIVATE PROJECT INTELLIGENCE</div>
-      <h1>{mode === "signup" ? "Create your account" : mode === "reset" ? "Reset your password" : mode === "update" ? "Choose a new password" : "Welcome back"}</h1>
-      <p className="auth-subtitle">{mode === "signup" ? "Create a secure workspace for your project knowledge." : mode === "reset" ? "We'll email you a secure link to reset your password." : mode === "update" ? "Set a new password for your VivaProof account." : "Sign in to continue to your evidence workspace."}</p>
+  if (!supabase) return <main className="auth-page"><section className="auth-card"><h1>Authentication setup needed</h1><p>Add the Supabase URL and publishable key to the frontend environment.</p><code>VITE_SUPABASE_URL</code><code>VITE_SUPABASE_PUBLISHABLE_KEY</code></section></main>;
+  return <main className="auth-page"><div className="auth-backdrop"/><div className="auth-layout">
+    <aside className="auth-story"><a className="wordmark" href="#" onClick={e => {e.preventDefault(); onBack?.();}}><span className="logo-symbol"><ShieldCheck size={20}/></span><span>VIVA<span className="wordmark-light">PROOF</span></span></a>
+      <div className="auth-story-copy"><span className="section-eyebrow">PROJECT INTELLIGENCE, WITH PROOF</span><h2>Your work deserves answers you can trust.</h2><p>Bring your project files together. Ask questions. Follow every answer back to the evidence.</p>
+        <div className="auth-story-points"><span><Check/> Source-linked responses</span><span><Check/> Private, account-scoped documents</span><span><Check/> A clearer view of your project</span></div></div>
+      <div className="auth-story-foot">VIVA PROOF <i>·</i> EVIDENCE, NOT GUESSES</div>
+    </aside>
+    <section className="auth-card"><button className="auth-back" onClick={onBack}>← Back to home</button><div className="auth-emblem"><Sparkles size={21}/></div>
+      <span className="section-eyebrow">{mode === "signup" ? "START YOUR PRIVATE WORKSPACE" : mode === "reset" ? "ACCOUNT RECOVERY" : mode === "update" ? "SECURE YOUR ACCOUNT" : "WELCOME BACK"}</span>
+      <h1>{mode === "signup" ? "Create your account" : mode === "reset" ? "Reset your password" : mode === "update" ? "Choose a new password" : "Sign in to VivaProof"}</h1>
+      <p className="auth-subtitle">{mode === "signup" ? "A secure home for your project knowledge." : mode === "reset" ? "We'll send a secure reset link if the account exists." : mode === "update" ? "Choose a new password to protect your workspace." : "Continue to your evidence workspace."}</p>
       <form className="auth-form" onSubmit={submit}>
-        {mode !== "update" && <><label htmlFor="auth-email">Email address</label>
-        <input id="auth-email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"/></>}
-        {mode !== "reset" && <><label htmlFor="auth-password">{mode === "update" ? "New password" : "Password"}</label><div className="password-field"><input id="auth-password" type={showPassword ? "text" : "password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={6} required value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 6 characters"/><button type="button" onClick={() => setShowPassword(v => !v)} aria-label="Toggle password visibility">{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div></>}
-        {error && <div className="auth-error">{error}</div>}
-        {notice && <div className="auth-notice">{notice}</div>}
-        <button className="auth-submit" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "signup" ? "Create account" : mode === "reset" ? "Send reset link" : mode === "update" ? "Update password" : "Sign in"} <ArrowRight size={16}/></button>
+        {mode === "signup" && <><label htmlFor="auth-name">Full name</label><input id="auth-name" autoComplete="name" required value={name} onChange={e => setName(e.target.value)} placeholder="Your name"/></>}
+        {mode !== "update" && <><label htmlFor="auth-email">Email address</label><input id="auth-email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"/></>}
+        {mode !== "reset" && <><label htmlFor="auth-password">{mode === "update" ? "New password" : "Password"}</label><div className="password-field"><input id="auth-password" type={showPassword ? "text" : "password"} autoComplete={mode === "signup" || mode === "update" ? "new-password" : "current-password"} minLength={8} required value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters"/><button type="button" onClick={() => setShowPassword(v => !v)} aria-label="Toggle password visibility">{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div>
+          {(mode === "signup" || mode === "update") && <div className="password-strength"><div>{[1,2,3,4].map(n => <i key={n} className={strength >= n ? "filled" : ""}/>)}</div><span>{strengthLabel}</span></div>}
+          {(mode === "signup" || mode === "update") && <><label htmlFor="auth-confirm">Confirm password</label><div className="password-field"><input id="auth-confirm" type={showConfirm ? "text" : "password"} autoComplete="new-password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter your password"/><button type="button" onClick={() => setShowConfirm(v => !v)} aria-label="Toggle confirmation visibility">{showConfirm ? <EyeOff size={17}/> : <Eye size={17}/>}</button></div></>}
+        </>}
+        {error && <div className="auth-error" role="alert">{error}</div>}{notice && <div className="auth-notice" role="status">{notice}</div>}
+        <button className="button-primary auth-submit" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "signup" ? "Create account" : mode === "reset" ? "Send reset link" : mode === "update" ? "Update password" : "Sign in"} <ArrowRight size={16}/></button>
       </form>
-      {mode === "signin" && <button className="auth-text-button" onClick={() => {setMode("reset");setError("");setNotice("");}}>Forgot password?</button>}
-      {(mode === "signin" || mode === "signup") && <div className="auth-switch">{mode === "signup" ? "Already have an account?" : "New to VivaProof AI?"} <button onClick={() => {setMode(mode === "signup" ? "signin" : "signup");setError("");setNotice("");}}>{mode === "signup" ? "Sign in" : "Create account"}</button></div>}
-      {(mode === "reset" || mode === "update") && <button className="auth-text-button" onClick={() => {setMode("signin");setError("");setNotice("");}}>Back to sign in</button>}
-      <div className="auth-security"><ShieldCheck size={14}/> Private workspace · Your documents stay isolated to your account</div>
+      {mode === "signin" && <button className="auth-text-button" onClick={() => switchMode("reset")}>Forgot password?</button>}
+      {(mode === "signin" || mode === "signup") && <div className="auth-switch">{mode === "signup" ? "Already have an account?" : "New to VivaProof?"}<button onClick={() => switchMode(mode === "signup" ? "signin" : "signup")}>{mode === "signup" ? "Sign in" : "Create account"}</button></div>}
+      {(mode === "reset" || mode === "update") && <button className="auth-text-button" onClick={() => switchMode("signin")}>Back to sign in</button>}
+      <div className="auth-security"><ShieldCheck size={14}/> Secure authentication powered by Supabase</div>
     </section>
-    <div className="auth-caption">EVIDENCE, NOT GUESSES <span>✦</span> BUILT FOR PROJECT CLARITY</div>
-  </main>;
+  </div></main>;
 }
