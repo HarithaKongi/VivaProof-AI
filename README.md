@@ -206,7 +206,16 @@ python -m pytest -q
 
 GitHub Actions runs the backend test suite on pushes and pull requests targeting the main/master branch. Tests cover chunk boundaries, overlap validation, text/Markdown extraction and unsupported file handling. They do not require live Qdrant or Gemini credentials.
 
-## Product experience\n\n- Public landing page with product overview, feature highlights and calls to action.\n- Supabase-powered sign-up, sign-in, email confirmation, password recovery and password update.\n- First-login onboarding and authenticated workspace.\n- Dashboard metrics sourced from the authenticated document index and live API health.\n- Evidence chat, source inspection, document upload/list/delete and account profile settings.\n- Responsive navigation and mobile layouts.\n\n## Current scope and limitations
+## Product experience
+
+- Public landing page with product overview, feature highlights and calls to action.
+- Supabase-powered sign-up, sign-in, email confirmation, password recovery and password update.
+- First-login onboarding and authenticated workspace.
+- Dashboard metrics sourced from the authenticated document index and live API health.
+- Evidence chat, source inspection, document upload/list/delete and account profile settings.
+- Responsive navigation and mobile layouts.
+
+## Current scope and limitations
 
 - Scanned PDFs and image-only documents are not OCR-processed; they need selectable text.
 - DOCX extraction currently reads paragraph text, not tables, images or embedded objects.
