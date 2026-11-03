@@ -16,7 +16,7 @@ export function AuthScreen({ recovery = false, initialMode = "signin", onBack }:
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const strength = [password.length >= 8, /[A-Z]/.test(password) && /[a-z]/.test(password), /\\d/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length;
+  const strength = [password.length >= 8, /[A-Z]/.test(password) && /[a-z]/.test(password), /\d/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length;
   const strengthLabel = ["Add a password", "Weak", "Fair", "Good", "Strong"][password ? strength : 0];
 
   function switchMode(next: Mode) {
@@ -28,7 +28,7 @@ export function AuthScreen({ recovery = false, initialMode = "signin", onBack }:
     setBusy(true); setError(""); setNotice("");
     try {
       const cleanEmail = email.trim().toLowerCase();
-      if (mode !== "update" && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(cleanEmail)) {
+      if (mode !== "update" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
         throw new Error("Enter a valid email address.");
       }
       if (mode === "signup") {
