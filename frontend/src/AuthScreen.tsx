@@ -28,7 +28,7 @@ export function AuthScreen({ recovery = false, initialMode = "signin", onBack }:
     setBusy(true); setError(""); setNotice("");
     try {
       const cleanEmail = email.trim().toLowerCase();
-      if (mode !== "update" && mode !== "reset" && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(cleanEmail)) {
+      if (mode !== "update" && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(cleanEmail)) {
         throw new Error("Enter a valid email address.");
       }
       if (mode === "signup") {
@@ -99,7 +99,7 @@ export function AuthScreen({ recovery = false, initialMode = "signin", onBack }:
           </>}
           {error && <div className="auth-error" role="alert">{error}</div>}
           {notice && <div className="auth-notice" role="status">{notice}</div>}
-          <button className="button-primary auth-submit" type="submit" disabled={busy}>{busy && <Loader2 className="spin" size={16}/ >}{busy ? "Please wait…" : mode === "signup" ? "Create account" : mode === "reset" ? "Send reset link" : mode === "update" ? "Update password" : "Sign in"} {!busy && <ArrowRight size={16}/>}</button>
+          <button className="button-primary auth-submit" type="submit" disabled={busy}>{busy && <Loader2 className="spin" size={16}/>}{busy ? "Please wait…" : mode === "signup" ? "Create account" : mode === "reset" ? "Send reset link" : mode === "update" ? "Update password" : "Sign in"} {!busy && <ArrowRight size={16}/>}</button>
         </form>
         {mode === "signin" && <button className="auth-text-button" onClick={() => switchMode("reset")}>Forgot password?</button>}
         {(mode === "signin" || mode === "signup") && <div className="auth-switch">{mode === "signup" ? "Already have an account?" : "New to VivaProof?"}<button onClick={() => switchMode(mode === "signup" ? "signin" : "signup")}>{mode === "signup" ? "Sign in" : "Create account"}</button></div>}
