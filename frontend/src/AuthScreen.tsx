@@ -57,9 +57,8 @@ export function AuthScreen({ recovery = false, initialMode = "signin", onBack }:
         if (password !== confirmPassword) throw new Error("Your passwords do not match.");
         const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
-        setNotice("Password updated. You can now sign in with your new password.");
-        await supabase.auth.signOut();
-        switchMode("signin");
+        setNotice("Password updated successfully. Your secure session is ready.");
+        onBack?.();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed. Please try again.");
