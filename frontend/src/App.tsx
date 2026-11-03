@@ -41,6 +41,10 @@ export default function App() {
       const status = await h.json();
       setHealth("online"); setStorageConfigured(Boolean(status.vector_store_configured));
       const d = await fetch(`${API}/api/documents`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (d.status === 401) {
+        await supabase?.auth.signOut();
+        throw new Error("Your session expired. Please sign in again.");
+      }
       if (!d.ok) throw new Error("Could not load your documents");
       setDocuments(await d.json());
     } catch { setHealth("offline"); setDocuments([]); }
@@ -96,7 +100,10 @@ export default function App() {
     finally { setBusy(false); }
   }
   async function completeOnboarding() {
-    if (supabase) await supabase.auth.updateUser({ data: { onboarding_completed: true } });
+    if (!supabase) { setNotice("Authentication is not configured. Please contact the workspace administrator."); return; }
+    setNotice("");
+    const { error } = await supabase.auth.updateUser({ data: { onboarding_completed: true } });
+    if (error) { setNotice("We couldn't save your onboarding progress. Please try again."); return; }
     setPage("dashboard");
   }
   async function sendPasswordReset() {
@@ -118,7 +125,7 @@ export default function App() {
   if (authLoading) return <main className="loading-screen"><span className="logo-symbol"><ShieldCheck/></span><p>Preparing your private workspace…</p></main>;
   if (recoveryMode) return <AuthScreen recovery onBack={() => setRecoveryMode(false)}/>;
   if (!session) return authView ? <AuthScreen initialMode={authView} onBack={() => setAuthView(null)}/> : <LandingPage onSignIn={() => setAuthView("signin")} onSignUp={() => setAuthView("signup")}/>;
-  if (session.user.user_metadata?.onboarding_completed !== true) return <Onboarding name={profileName.split(" ")[0]} onComplete={() => void completeOnboarding()}/>;
+  if (session.user.user_metadata?.onboarding_completed !== true) return <Onboarding name={profileName.split(" ")[0]} error={notice} onComplete={() => void completeOnboarding()}/>;
 
   const name = profileName || session.user.email?.split("@")[0] || "there";
   const totalChunks = documents.reduce((n, d) => n + d.chunks, 0);
